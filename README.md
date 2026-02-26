@@ -8,6 +8,7 @@ It is only meant for bots, since controlling real accounts is against Discord TO
 # Install Instructions
 
 1. If on Windows, install the `curses` package using ```pip install windows-curses```
+   1. `windows-curses` needs Python Version `3.6` - `3.13`
 
 2. Install all required modules with ```pip install -r requirements.txt```
 
