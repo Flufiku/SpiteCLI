@@ -1,12 +1,30 @@
 import curses
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from helpers import *
+from spite_discord_client import SpiteDiscordClient
 
 
 
-colors = {}
-color_pairs = {}
+
+
+
+
+
+
 
 def main(stdscr):
+    client = SpiteDiscordClient(os.getenv("DISCORD_BOT_TOKEN"))
+    client.run()
+    
+    state = "STARTUP"
+    t = 0
+    
+    colors = {}
+    color_pairs = {}
+    
     curses.curs_set(0)
     stdscr.nodelay(True)
 
@@ -22,14 +40,17 @@ def main(stdscr):
 		
         key_input(stdscr)
   
-        draw(stdscr)
+        draw(stdscr, color_pairs)
 
+        state = next_state(state, client, t)
+        
+        t += 1
         curses.napms(50)
 
 
 
 
-def draw(stdscr):
+def draw(stdscr, color_pairs={}):
     stdscr.erase()
 
     height, width = stdscr.getmaxyx()
@@ -74,5 +95,28 @@ def key_input(stdscr):
 
 
 
+def next_state(state, client, t):
+    if not state == "STARTUP" and not client.is_online:
+        return "OFFLINE"
+
+
+    if state == "STARTUP":
+        if t > 20:
+            return "STARTUP_DONE"
+
+    if state == "STARTUP_DONE":
+        if client.is_online:
+            return "ONLINE"
+    
+    elif state == "OFFLINE":
+        if client.is_online:
+            return "ONLINE"
+    
+    
+    return state 
+        
+    
+        
+    
 if __name__ == "__main__":
 	curses.wrapper(main)
