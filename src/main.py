@@ -19,8 +19,10 @@ def main(stdscr):
     client = SpiteDiscordClient(os.getenv("DISCORD_BOT_TOKEN"))
     client.run()
     
-    state = "STARTUP"
-    t = 0
+    state = ""
+    last_state = ""
+    t = 0   # Total on time
+    ls = 0  # Time since last state change
     
     colors = {}
     color_pairs = {}
@@ -34,56 +36,97 @@ def main(stdscr):
         add_color_pair(color_pairs, "highlight", curses.COLOR_WHITE, colors["grey"])
 
         add_color(colors, "red", (1000, 0, 0))
-        add_color_pair(color_pairs, "red_on_black", colors["red"], curses.COLOR_BLACK)
+        add_color_pair(color_pairs, "error", colors["red"], curses.COLOR_BLACK)
 
     while True:
 		
+        state, last_state, ls = next_state(state, last_state, stdscr, client, t, ls)
+  
         key_input(stdscr)
   
-        draw(stdscr, color_pairs)
+        draw(state, last_state, stdscr, client, t, ls, colors, color_pairs)
 
-        state = next_state(state, client, t)
         
         t += 1
-        curses.napms(50)
+        ls += 1
+        curses.napms(10)
 
 
 
 
-def draw(stdscr, color_pairs={}):
+def draw(state, last_state, stdscr, client, t, ls, colors, color_pairs):
     stdscr.erase()
 
     height, width = stdscr.getmaxyx()
     
-    if width < 80 or height < 24:
-        try:
-            stdscr.addstr(0, 0, "Window must be at least 80x24.")
-            stdscr.addstr(1, 0, f"Current size: {width}x{height}", color_pairs["red_on_black"])
-        except curses.error:
-            pass
+    if state == "ERROR_TOO_SMALL":
+        write(stdscr, 0, 0, "Window must be at least 80x24.")
+        write(stdscr, 0, 1, f"Current size: {width}x{height}", color_pair=color_pairs["error"])
         stdscr.refresh()
         return
         
-    if not curses.can_change_color() or not curses.has_colors() or curses.COLORS <= 8:
-        try:
-            stdscr.addstr(0, 0, "Terminal does not support more than 8 custom colors")
-        except curses.error:
-            pass
+    if state == "ERROR_NO_COLORS":
+        write(stdscr, 0, 0, "Terminal does not support more than 8 custom colors")
         stdscr.refresh()
         return
     
-        
-    label = f"{width}*{height}"
-
-    y = height // 2
-    x = max(0, (width - len(label)) // 2)
+    if state == "ERROR_OFFLINE":
+        write(stdscr, 0, 0, "Discord client is offline", color_pair=color_pairs["error"])
+        stdscr.refresh()
+        return
     
-    try:
-        stdscr.addstr(y, x, label, color_pairs["highlight"])
-    except curses.error:
-        pass
+    
+    
+    if state == "STARTUP" or state == "STARTUP_DONE":
+        write(stdscr, width//2, height//2, "Starting...", allign="center", color_pair=color_pairs["highlight"])
+        
+        original_coords = (width//2, height//2 + 5) # Origin coords
+        coords = [
+            [original_coords[0], original_coords[1]],
+            [original_coords[0]+1, original_coords[1]+1],
+            [original_coords[0]+2, original_coords[1]+2],
+            [original_coords[0]+3, original_coords[1]+2],
+            [original_coords[0]+4, original_coords[1]+2],
+            [original_coords[0]+5, original_coords[1]+1],
+            [original_coords[0]+5, original_coords[1]],
+            [original_coords[0]+5, original_coords[1]-1],
+            [original_coords[0]+4, original_coords[1]-2],
+            [original_coords[0]+3, original_coords[1]-2],
+            [original_coords[0]+2, original_coords[1]-2],
+            [original_coords[0]+1, original_coords[1]-1],
+            [original_coords[0], original_coords[1]],
+            [original_coords[0]-1, original_coords[1]+1],
+            [original_coords[0]-2, original_coords[1]+2],
+            [original_coords[0]-3, original_coords[1]+2],
+            [original_coords[0]-4, original_coords[1]+2],
+            [original_coords[0]-5, original_coords[1]+1],
+            [original_coords[0]-5, original_coords[1]],
+            [original_coords[0]-5, original_coords[1]-1],
+            [original_coords[0]-4, original_coords[1]-2],
+            [original_coords[0]-3, original_coords[1]-2],
+            [original_coords[0]-2, original_coords[1]-2],
+            [original_coords[0]-1, original_coords[1]-1]
+        ]
+        
+        #for coord in coords:
+        #    write(stdscr, coord[0], coord[1], "#")
+        
+        for i in range(len(coords)):
+            temp_name = f"temp_{i}"
+            add_color(colors, temp_name, (int(i/(len(coords)-1)*1000), 0, 0))
+            add_color_pair(color_pairs, temp_name, colors[temp_name], curses.COLOR_BLACK)
+            write(stdscr, coords[(t+i)%len(coords)][0], coords[(t+i)%len(coords)][1], "#", color_pair=color_pairs[temp_name])
+        
+        stdscr.refresh()
+        return
+    
+    
+    if state == "ONLINE":
+        write(stdscr, width//2, height//2, "Online", allign="center", color_pair=color_pairs["highlight"])
+        stdscr.refresh()
+        return
 
-    stdscr.refresh()
+
 
 
 
@@ -95,25 +138,48 @@ def key_input(stdscr):
 
 
 
-def next_state(state, client, t):
-    if not state == "STARTUP" and not client.is_online:
-        return "OFFLINE"
+def next_state(state, last_state, stdscr, client, t, ls):
+    if not curses.can_change_color() or not curses.has_colors() or curses.COLORS <= 8:
+        if state != "ERROR_NO_COLORS":
+            return "ERROR_NO_COLORS", state, 0
+        else:
+            return "ERROR_NO_COLORS", last_state, ls
+        
+    if not state == "STARTUP" and not state == "" and not client.is_online:
+        if state != "ERROR_OFFLINE":
+            return "ERROR_OFFLINE", state, 0
+        else:
+            return "ERROR_OFFLINE", last_state, ls
+    
+    if stdscr.getmaxyx()[0] < 24 or stdscr.getmaxyx()[1] < 80:
+        if state != "ERROR_TOO_SMALL":
+            return "ERROR_TOO_SMALL", state, 0
+        else:
+            return "ERROR_TOO_SMALL", last_state, ls
 
+
+
+    if state == "":
+        return "STARTUP", state, 0
 
     if state == "STARTUP":
-        if t > 20:
-            return "STARTUP_DONE"
+        if ls > 500 or client.is_online:
+            return "STARTUP_DONE", state, 0
 
     if state == "STARTUP_DONE":
         if client.is_online:
-            return "ONLINE"
+            return "ONLINE", state, 0
     
-    elif state == "OFFLINE":
+    elif state == "ERROR_OFFLINE":
         if client.is_online:
-            return "ONLINE"
+            return last_state, state, 0
+    
+    elif state == "ERROR_TOO_SMALL":
+        if stdscr.getmaxyx()[0] >= 24 and stdscr.getmaxyx()[1] >= 80:
+            return last_state, state, 0
     
     
-    return state 
+    return state, last_state, ls
         
     
         

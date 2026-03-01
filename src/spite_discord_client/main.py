@@ -1,4 +1,5 @@
 import discord
+import threading
 
 
 class SpiteDiscordClient():
@@ -12,10 +13,16 @@ class SpiteDiscordClient():
         self.client = discord.Client(intents=intents)
         
         @self.client.event
-        async def on_ready(self):
+        async def on_ready():
             print(f'Logged in as {self.client.user}')
             self.is_online = True
             
             
     def run(self):
-        return self.client.run(token=self.token)
+        thread = threading.Thread(
+            target=self.client.run,
+            kwargs={"token": self.token},
+            daemon=True,
+        )
+        thread.start()
+        return thread
