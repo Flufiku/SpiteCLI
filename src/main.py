@@ -107,15 +107,29 @@ def draw(state, last_state, stdscr, client, t, ls, colors, color_pairs):
             [original_coords[0]-2, original_coords[1]-2],
             [original_coords[0]-1, original_coords[1]-1]
         ]
-        
-        #for coord in coords:
-        #    write(stdscr, coord[0], coord[1], "#")
-        
+        """
+        for coord in coords:
+            write(stdscr, coord[0], coord[1], "#")
+        """
+        """
         for i in range(len(coords)):
             temp_name = f"temp_{i}"
             add_color(colors, temp_name, (int(i/(len(coords)-1)*1000), 0, 0))
             add_color_pair(color_pairs, temp_name, colors[temp_name], curses.COLOR_BLACK)
             write(stdscr, coords[(t+i)%len(coords)][0], coords[(t+i)%len(coords)][1], "#", color_pair=color_pairs[temp_name])
+        """
+        """
+        num = len(coords)
+        iterations = abs((t - (num - 1)) % (2 * (num - 1)) - (num - 1))
+        for i in range(0, iterations):
+            write(stdscr, coords[(i)%len(coords)][0], coords[(i)%len(coords)][1], "#")
+        """
+        """"""
+        num = len(coords)
+        iterations_lower = max(0, (t % (2 * num)) - num)
+        iterations_upper = min(t % (2 * num), num)
+        for i in range(iterations_lower, iterations_upper):
+            write(stdscr, coords[(i)%len(coords)][0], coords[(i)%len(coords)][1], "#")
         
         stdscr.refresh()
         return
