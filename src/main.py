@@ -139,6 +139,12 @@ def draw(state, last_state, stdscr, client, t, ls, colors, color_pairs, keys):
     if state == "HALT":
         write(stdscr, width//2, height//2, "Shutting Down...", allign="center", color_pair=color_pairs["highlight"])
     
+    if state == "HELP":
+        write(stdscr, width//2, height//2, "Help Menu", allign="center", color_pair=color_pairs["highlight"])
+        write(stdscr, width//2, height//2 + 1, "Press F1 or ESC to return", allign="center")
+        stdscr.refresh()
+        return
+    
     if state == "ONLINE":
         write(stdscr, width//2, height//2, "Online", allign="center", color_pair=color_pairs["highlight"])
         
@@ -191,6 +197,16 @@ def key_input(stdscr, keys):
         key_down(keys, "q")
     else:
         key_up(keys, "q")
+        
+    if key in (curses.KEY_F1,):
+        key_down(keys, "F1")
+    else:
+        key_up(keys, "F1")
+    
+    if key in (27,):
+        key_down(keys, "ESC")
+    else:    
+        key_up(keys, "ESC")
 
 
 
@@ -199,9 +215,10 @@ def next_state(state, last_state, stdscr, keys, client, t, ls):
         curses.endwin()
         exit()
 
-    if keys.get("q", "UP") == "PRESSED" or keys.get("q", "UP") == "DOWN":
+    if keys.get("q", "UP") in ("PRESSED", "DOWN"):
         return "HALT", state, 0
-
+    
+    
     if not curses.can_change_color() or not curses.has_colors() or curses.COLORS <= 8:
         if state != "ERROR_NO_COLORS":
             return "ERROR_NO_COLORS", state, 0
@@ -222,6 +239,8 @@ def next_state(state, last_state, stdscr, keys, client, t, ls):
 
 
 
+
+
     if state == "":
         return "STARTUP", state, 0
 
@@ -233,11 +252,18 @@ def next_state(state, last_state, stdscr, keys, client, t, ls):
         if client.is_online:
             return "ONLINE", state, 0
     
-    elif state == "ERROR_OFFLINE":
+    if state == "HELP":
+        if keys.get("F1", "UP") in ("PRESSED", "DOWN") or keys.get("ESC", "UP") in ("PRESSED", "DOWN"):
+            return last_state, state, 0
+    else:
+        if keys.get("F1", "UP") in ("PRESSED", "DOWN"):
+            return "HELP", state, 0
+    
+    if state == "ERROR_OFFLINE":
         if client.is_online:
             return last_state, state, 0
     
-    elif state == "ERROR_TOO_SMALL":
+    if state == "ERROR_TOO_SMALL":
         if stdscr.getmaxyx()[0] >= 24 and stdscr.getmaxyx()[1] >= 80:
             return last_state, state, 0
     
