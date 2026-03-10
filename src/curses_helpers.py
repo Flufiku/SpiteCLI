@@ -33,3 +33,17 @@ def write(stdscr, x, y, text, allign="left", color_pair=None):
             stdscr.addstr(y, x, text)
     except curses.error:
         pass
+    
+def key_down(keys, key):
+    if key not in keys or keys[key] in ("UP", "UNPRESSED"):
+        keys[key] = "PRESSED"
+    else:
+        keys[key] = "DOWN"
+    
+def key_up(keys, key):
+    if key not in keys or keys[key] == "UP":
+        keys[key] = "UP"
+    elif keys[key] in ("DOWN", "PRESSED"):
+        keys[key] = "UNPRESSED"
+    else:
+        keys[key] = "UP"

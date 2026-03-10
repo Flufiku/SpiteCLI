@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from helpers import *
+from curses_helpers import *
 from spite_discord_client import SpiteDiscordClient
 
 
@@ -26,6 +26,8 @@ def main(stdscr):
     
     colors = {}
     color_pairs = {}
+
+    keys = {}
     
     curses.curs_set(0)
     stdscr.nodelay(True)
@@ -40,21 +42,21 @@ def main(stdscr):
 
     while True:
 		
-        state, last_state, ls = next_state(state, last_state, stdscr, client, t, ls)
+        state, last_state, ls = next_state(state, last_state, stdscr, keys, client, t, ls)
   
-        key_input(stdscr)
+        key_input(stdscr, keys)
   
-        draw(state, last_state, stdscr, client, t, ls, colors, color_pairs)
+        draw(state, last_state, stdscr, client, t, ls, colors, color_pairs, keys)
 
         
         t += 1
         ls += 1
-        curses.napms(10)
+        curses.napms(20)
 
 
 
 
-def draw(state, last_state, stdscr, client, t, ls, colors, color_pairs):
+def draw(state, last_state, stdscr, client, t, ls, colors, color_pairs, keys):
     stdscr.erase()
 
     height, width = stdscr.getmaxyx()
@@ -134,9 +136,39 @@ def draw(state, last_state, stdscr, client, t, ls, colors, color_pairs):
         stdscr.refresh()
         return
     
+    if state == "HALT":
+        write(stdscr, width//2, height//2, "Shutting Down...", allign="center", color_pair=color_pairs["highlight"])
     
     if state == "ONLINE":
         write(stdscr, width//2, height//2, "Online", allign="center", color_pair=color_pairs["highlight"])
+        
+        for _ in range(height):
+            write(stdscr, 9, _, "│")
+            
+        for _ in range(height):
+            write(stdscr, 19, _, "│")
+        """
+        servers = client.get_servers()
+        channels = client.get_channels(servers[0]) if len(servers) > 0 else []
+        messages = client.get_messages(channels[0]) if len(channels) > 0 else []
+        
+        
+        
+        for i, server in enumerate(servers):
+            write(stdscr, 0, i, server.name[:9])
+        for i, channel in enumerate(channels):
+            write(stdscr, 10, i, channel.name[:9])
+        for i, message in enumerate(messages):
+            name_len = len(message.author.name)
+            write(stdscr, 20, i, message.author.name)
+            write(stdscr, 20+name_len, i, ": " + message.content[:width-22-name_len])
+        """
+
+        debug_width = max(0, width - 20)
+        write(stdscr, 20, height - 2, f"getch: {keys.get('_getch', None)} ({keys.get('_getch_name', '')})"[:debug_width])
+        write(stdscr, 20, height - 1, f"keys: {keys}"[:debug_width])
+            
+        
         stdscr.refresh()
         return
 
@@ -144,15 +176,32 @@ def draw(state, last_state, stdscr, client, t, ls, colors, color_pairs):
 
 
 
-def key_input(stdscr):
+def key_input(stdscr, keys):
     key = stdscr.getch()
+    keys["_getch"] = key
+    if key == -1:
+        keys["_getch_name"] = "NO_INPUT"
+    else:
+        try:
+            keys["_getch_name"] = curses.keyname(key).decode("utf-8", errors="replace")
+        except Exception:
+            keys["_getch_name"] = "UNKNOWN"
+
     if key in (ord("q"), ord("Q")):
+        key_down(keys, "q")
+    else:
+        key_up(keys, "q")
+
+
+
+def next_state(state, last_state, stdscr, keys, client, t, ls):
+    if state == "HALT":
         curses.endwin()
         exit()
 
+    if keys.get("q", "UP") == "PRESSED" or keys.get("q", "UP") == "DOWN":
+        return "HALT", state, 0
 
-
-def next_state(state, last_state, stdscr, client, t, ls):
     if not curses.can_change_color() or not curses.has_colors() or curses.COLORS <= 8:
         if state != "ERROR_NO_COLORS":
             return "ERROR_NO_COLORS", state, 0
@@ -177,7 +226,7 @@ def next_state(state, last_state, stdscr, client, t, ls):
         return "STARTUP", state, 0
 
     if state == "STARTUP":
-        if ls > 500 or client.is_online:
+        if ls > 120 or client.is_online:
             return "STARTUP_DONE", state, 0
 
     if state == "STARTUP_DONE":

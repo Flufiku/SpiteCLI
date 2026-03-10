@@ -1,5 +1,6 @@
 import discord
 import threading
+import asyncio
 
 
 class SpiteDiscordClient():
@@ -26,3 +27,31 @@ class SpiteDiscordClient():
         )
         thread.start()
         return thread
+    
+    def get_servers(self):
+        return self.client.guilds
+    
+    def get_channels(self, server):
+        if server is None:
+            return []
+        return [channel for channel in server.channels if hasattr(channel, "history") and channel.type in (discord.ChannelType.text, discord.ChannelType.forum)]
+    
+    def get_messages(self, channel, limit=100):
+        if channel is None or not hasattr(channel, "history"):
+            return []
+
+        loop = getattr(self.client, "loop", None)
+        if loop is None or not loop.is_running():
+            return []
+
+        async def collect_messages():
+            results = []
+            async for message in channel.history(limit=limit):
+                results.append(message)
+            return results
+
+        try:
+            future = asyncio.run_coroutine_threadsafe(collect_messages(), loop)
+            return future.result(timeout=2)
+        except Exception:
+            return []
