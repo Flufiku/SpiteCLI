@@ -13,12 +13,17 @@ class SpiteDiscordClient():
         intents.message_content = True
         self.client = discord.Client(intents=intents)
         
+        self.num_servers = 0
+        self.num_channels = []
+        
         @self.client.event
         async def on_ready():
             print(f'Logged in as {self.client.user}')
             self.is_online = True
+            self.num_servers = len(self.get_servers())
+            self.num_channels = [len(self.get_channels(server)) for server in self.get_servers()]
             
-            
+
     def run(self):
         thread = threading.Thread(
             target=self.client.run,
