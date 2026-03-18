@@ -1,4 +1,28 @@
 import curses
+import colorsys
+
+
+SENDER_NAME_COLOR_COUNT = 27
+
+
+def strip_unrenderable_chars(text):
+    if text is None:
+        return ""
+
+    result = []
+    for char in str(text):
+        code = ord(char)
+
+        # Block emoji ranges and surrogates
+        if 0xD800 <= code <= 0xDFFF:  # Surrogate pairs
+            continue
+        if code >= 0x1F000:  # Emoji and pictographs start here
+            continue
+
+        # Keep everything else: ASCII, symbols, box drawing, etc.
+        result.append(char)
+
+    return "".join(result)
 
 def add_color(colors, name, color):
     color_number = None
@@ -18,14 +42,46 @@ def add_color_pair(color_pairs, name, fg_color, bg_color):
     curses.init_pair(pair_number, fg_color, bg_color)
     color_pairs[name] = curses.color_pair(pair_number)
 
+
+def _sender_name_color_index(sender_name):
+    if not sender_name:
+        return SENDER_NAME_COLOR_COUNT - 1
+
+    first_char = str(sender_name)[0].upper()
+    if "A" <= first_char <= "Z":
+        return ord(first_char) - ord("A")
+
+    return SENDER_NAME_COLOR_COUNT - 1
+
+
+def init_sender_name_color_pairs(colors, color_pairs):
+    for i in range(SENDER_NAME_COLOR_COUNT):
+        hue = i / SENDER_NAME_COLOR_COUNT
+        red, green, blue = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
+        color_name = f"sender_name_color_{i}"
+        pair_name = f"sender_name_pair_{i}"
+
+        try:
+            add_color(colors, color_name, (round(red * 1000), round(green * 1000), round(blue * 1000)))
+            add_color_pair(color_pairs, pair_name, colors[color_name], curses.COLOR_BLACK)
+        except curses.error:
+            break
+
+
+def get_sender_name_color_pair(sender_name, color_pairs):
+    index = _sender_name_color_index(sender_name)
+    return color_pairs.get(f"sender_name_pair_{index}")
+
     
     
 def write(stdscr, x, y, text, allign="left", color_pair=None):
+    text = strip_unrenderable_chars(text)
+
     if allign == "center":
         x = max(0, x - len(text) // 2)
     if allign == "right":
         x = max(0, x - len(text))
-    
+
     try:
         if color_pair:
             stdscr.addstr(y, x, text, color_pair)

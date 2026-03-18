@@ -46,6 +46,8 @@ def main(stdscr):
         add_color(colors, "red", (1000, 0, 0))
         add_color_pair(color_pairs, "error", colors["red"], curses.COLOR_BLACK)
 
+        init_sender_name_color_pairs(colors, color_pairs)
+
     while True:
 		
         state, last_state, ls = next_state(state, last_state, stdscr, keys, client, t, ls, v)
@@ -152,7 +154,7 @@ def draw(state, last_state, stdscr, client, t, ls, colors, color_pairs, keys, v)
         return
     
     if state == "ONLINE":
-        sidebar_width = 12 #TODO: Implement Var
+        sidebar_width = 12
         
         if not "y_s" in v:
             v["y_s"] = 0
@@ -232,8 +234,8 @@ def draw(state, last_state, stdscr, client, t, ls, colors, color_pairs, keys, v)
             if i >= height - 10:
                 break
             name_len = len(message.author.name)
-            write(stdscr, 2*sidebar_width, i, message.author.name)
-            write(stdscr, 2*sidebar_width+name_len, i, ": " + message.content[:width-2*sidebar_width-2-name_len])
+            write(stdscr, 2*sidebar_width, i, message.author.name + ": ", color_pair=get_sender_name_color_pair(message.author.name, color_pairs))
+            write(stdscr, 2*sidebar_width+name_len+2 , i, strip_unrenderable_chars(message.content)[:width-2*sidebar_width-2-name_len])
         
 
         debug_width = max(0, width - 2*sidebar_width)
@@ -241,7 +243,7 @@ def draw(state, last_state, stdscr, client, t, ls, colors, color_pairs, keys, v)
         write(stdscr, 2*sidebar_width, height - 3, f"{client.num_servers}, {client.num_channels[v['y_s']]}"[:debug_width])
         write(stdscr, 2*sidebar_width, height - 2, f"getch: {keys.get('_getch', None)} ({keys.get('_getch_name', '')})"[:debug_width])
         write(stdscr, 2*sidebar_width, height - 1, f"keys: {keys}"[:debug_width])
-        
+
         
         stdscr.refresh()
         return
