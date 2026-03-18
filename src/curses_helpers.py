@@ -56,7 +56,7 @@ def _sender_name_color_index(sender_name):
 
 def init_sender_name_color_pairs(colors, color_pairs):
     for i in range(SENDER_NAME_COLOR_COUNT):
-        hue = i / SENDER_NAME_COLOR_COUNT
+        hue = 5*i / SENDER_NAME_COLOR_COUNT
         red, green, blue = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
         color_name = f"sender_name_color_{i}"
         pair_name = f"sender_name_pair_{i}"
