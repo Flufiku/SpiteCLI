@@ -148,8 +148,9 @@ def draw(state, last_state, stdscr, client, t, ls, colors, color_pairs, keys, v)
         write(stdscr, width//2, height//2, "Shutting Down...", allign="center", color_pair=color_pairs["highlight"])
     
     if state == "HELP":
-        write(stdscr, width//2, height//2, "Help Menu", allign="center", color_pair=color_pairs["highlight"])
+        write(stdscr, width//2, height//2 - 1, "Help Menu", allign="center", color_pair=color_pairs["highlight"])
         write(stdscr, width//2, height//2 + 1, "Press F1 or ESC to return", allign="center")
+        write(stdscr, width//2, height//2 + 2, "Use WASD or arrow keys to navigate", allign="center")
         stdscr.refresh()
         return
     
