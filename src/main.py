@@ -235,8 +235,8 @@ def draw(state, last_state, stdscr, client, t, ls, colors, color_pairs, keys, v)
             if i >= height - 10:
                 break
             name_len = len(message.author.name)
-            write(stdscr, 2*sidebar_width, i, message.author.name + ": ", color_pair=get_sender_name_color_pair(message.author.name, color_pairs))
-            write(stdscr, 2*sidebar_width+name_len+2 , i, strip_unrenderable_chars(message.content)[:width-2*sidebar_width-2-name_len])
+            write(stdscr, 2*sidebar_width, height - 10 - i, message.author.name + ": ", color_pair=get_sender_name_color_pair(message.author.name, color_pairs))
+            write(stdscr, 2*sidebar_width+name_len+2 , height - 10 - i, strip_unrenderable_chars(message.content)[:width-2*sidebar_width-2-name_len])
         
 
         debug_width = max(0, width - 2*sidebar_width)
