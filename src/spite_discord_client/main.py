@@ -1,62 +1,87 @@
-import discord
 import threading
-import asyncio
+import time
+from types import SimpleNamespace
+
+import requests
 
 
 class SpiteDiscordClient():
     
-    def __init__(self, token):
-        self.token = token
+    def __init__(self, base_url):
+        self.base_url = (base_url or "http://127.0.0.1:8000").rstrip("/")
         self.is_online = False
-        
-        intents = discord.Intents.default()
-        intents.message_content = True
-        self.client = discord.Client(intents=intents)
-        
+
         self.num_servers = 0
         self.num_channels = []
-        
-        @self.client.event
-        async def on_ready():
-            print(f'Logged in as {self.client.user}')
-            self.is_online = True
-            self.num_servers = len(self.get_servers())
-            self.num_channels = [len(self.get_channels(server)) for server in self.get_servers()]
+        self._polling = False
+        self._poll_thread = None
             
 
     def run(self):
-        thread = threading.Thread(
-            target=self.client.run,
-            kwargs={"token": self.token},
-            daemon=True,
+        if self._polling:
+            return self._poll_thread
+
+        self._polling = True
+
+        def poll_status():
+            while self._polling:
+                try:
+                    servers = self.get_servers()
+                    self.is_online = True
+                    self.num_servers = len(servers)
+                    self.num_channels = [len(self.get_channels(server)) for server in servers]
+                except Exception:
+                    self.is_online = False
+                    self.num_servers = 0
+                    self.num_channels = []
+                time.sleep(1.0)
+
+        self._poll_thread = threading.Thread(target=poll_status, daemon=True)
+        self._poll_thread.start()
+        return self._poll_thread
+
+    def _get(self, path, params=None):
+        response = requests.get(f"{self.base_url}{path}", params=params, timeout=3)
+        response.raise_for_status()
+        return response.json()
+
+    @staticmethod
+    def _to_server(server_data):
+        return SimpleNamespace(id=server_data["id"], name=server_data["name"])
+
+    @staticmethod
+    def _to_channel(channel_data):
+        return SimpleNamespace(id=channel_data["id"], name=channel_data["name"])
+
+    @staticmethod
+    def _to_message(message_data):
+        author = message_data.get("author", {})
+        return SimpleNamespace(
+            id=message_data.get("id"),
+            content=message_data.get("content", ""),
+            author=SimpleNamespace(
+                id=author.get("id"),
+                name=author.get("name", "unknown")
+            ),
+            created_at=message_data.get("created_at"),
         )
-        thread.start()
-        return thread
     
     def get_servers(self):
-        return self.client.guilds
+        data = self._get("/get_servers")
+        return [self._to_server(server_data) for server_data in data]
     
     def get_channels(self, server):
         if server is None:
             return []
-        return [channel for channel in server.channels if hasattr(channel, "history") and channel.type in (discord.ChannelType.text, discord.ChannelType.forum)]
+        data = self._get(f"/get_channels/{server.id}")
+        return [self._to_channel(channel_data) for channel_data in data]
     
     def get_messages(self, channel, limit=100):
-        if channel is None or not hasattr(channel, "history"):
+        if channel is None:
             return []
-
-        loop = getattr(self.client, "loop", None)
-        if loop is None or not loop.is_running():
-            return []
-
-        async def collect_messages():
-            results = []
-            async for message in channel.history(limit=limit):
-                results.append(message)
-            return results
 
         try:
-            future = asyncio.run_coroutine_threadsafe(collect_messages(), loop)
-            return future.result(timeout=2)
+            data = self._get(f"/get_messages/{channel.id}", params={"limit": limit})
+            return [self._to_message(message_data) for message_data in data]
         except Exception:
             return []
