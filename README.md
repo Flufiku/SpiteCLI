@@ -1,11 +1,18 @@
 # SpiteCLI
-SpiteCLI is a Terminal UI for browsing Discord Channels and DMs. 
+SpiteCLI is a Terminal UI for browsing Discord Channels and DMs of Discord Bots. 
 
 
 It is only meant for bots, since controlling real accounts is against Discord TOS.
 
 
-# Install Instructions
+# Install Instructions from Release
+
+1. Download the latest release from the releases tab.
+2. Run the `.exe` file.
+3. Thats it, enjoy.
+4. 
+
+# Install Instructions from Source
 
 1. If on Windows, install the `curses` package using ```pip install windows-curses```
 
