@@ -18,7 +18,7 @@ from spite_discord_client import SpiteDiscordClient
 
 
 def main(stdscr):
-    client = SpiteDiscordClient(os.getenv("SPITE_PROXY_URL", "http://127.0.0.1:8000"))
+    client = SpiteDiscordClient(os.getenv("SPITE_PROXY_URL", "http://185.101.159.26:8000"))
     client.run()
     
     state = ""
