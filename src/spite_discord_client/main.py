@@ -27,9 +27,9 @@ class SpiteDiscordClient():
             while self._polling:
                 try:
                     servers = self.get_servers()
-                    self.is_online = True
                     self.num_servers = len(servers)
                     self.num_channels = [len(self.get_channels(server)) for server in servers]
+                    self.is_online = True
                 except Exception:
                     self.is_online = False
                     self.num_servers = 0
@@ -56,14 +56,28 @@ class SpiteDiscordClient():
     @staticmethod
     def _to_message(message_data):
         author = message_data.get("author", {})
+        reference = message_data.get("reference")
+        resolved = reference.get("resolved") if reference else None
+        attachments = message_data.get("attachments", [])
         return SimpleNamespace(
             id=message_data.get("id"),
             content=message_data.get("content", ""),
-            author=SimpleNamespace(
-                id=author.get("id"),
-                name=author.get("name", "unknown")
-            ),
+            author=SimpleNamespace(id=author.get("id"), name=author.get("name", "unknown")),
             created_at=message_data.get("created_at"),
+            reference=SimpleNamespace(
+                message_id=reference.get("message_id"),
+                channel_id=reference.get("channel_id"),
+                guild_id=reference.get("guild_id"),
+                resolved=SimpleNamespace(
+                    id=resolved.get("id"),
+                    content=resolved.get("content", ""),
+                    author=SimpleNamespace(
+                        id=resolved.get("author", {}).get("id"),
+                        name=resolved.get("author", {}).get("name", "unknown"),
+                    ),
+                ) if resolved else None,
+            ) if reference else None,
+            attachments=[SimpleNamespace(id=a.get("id"), filename=a.get("filename"), size=a.get("size"), url=a.get("url")) for a in attachments],
         )
     
     def get_servers(self):

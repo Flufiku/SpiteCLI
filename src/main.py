@@ -1,6 +1,8 @@
 import curses
 import os
 from dotenv import load_dotenv
+
+from curses_message import SpiteMessage
 load_dotenv()
 
 from curses_helpers import *
@@ -45,6 +47,9 @@ def main(stdscr):
 
         add_color(colors, "red", (1000, 0, 0))
         add_color_pair(color_pairs, "error", colors["red"], curses.COLOR_BLACK)
+        
+        add_color(colors, "grey_text", (500, 500, 500))
+        add_color_pair(color_pairs, "grey_text", colors["grey_text"], curses.COLOR_BLACK)
 
         init_sender_name_color_pairs(colors, color_pairs)
 
@@ -191,6 +196,8 @@ def draw(state, last_state, stdscr, client, t, ls, colors, color_pairs, keys, v)
             else:
                 v["y_c"] += 1
 
+
+        
         v["y_s"] = max(0, min(v["y_s"], client.num_servers - 1))
         v["y_c"] = max(0, min(v["y_c"], client.num_channels[v["y_s"]] - 1))
 
@@ -231,20 +238,14 @@ def draw(state, last_state, stdscr, client, t, ls, colors, color_pairs, keys, v)
                     write(stdscr, sidebar_width, i, channel.name[:sidebar_width-1], color_pair=color_pairs["highlight"])
             else:
                 write(stdscr, sidebar_width, i, channel.name[:sidebar_width-1])
-        for i, message in enumerate(v["messages"]):
-            if i >= height - 10:
-                break
-            name_len = len(message.author.name)
-            write(stdscr, 2*sidebar_width, height - 10 - i, message.author.name + ": ", color_pair=get_sender_name_color_pair(message.author.name, color_pairs))
-            write(stdscr, 2*sidebar_width+name_len+2 , height - 10 - i, strip_unrenderable_chars(message.content)[:width-2*sidebar_width-2-name_len])
         
+        offset = 0
+        for i, message in enumerate(v["messages"]):
+             render_message = SpiteMessage(message, width - 2*sidebar_width)
+             offset += render_message.render_size
+             render_message.render(stdscr, 2*sidebar_width, height - offset, width - 2*sidebar_width, color_pairs)
 
-        debug_width = max(0, width - 2*sidebar_width)
-        write(stdscr, 2*sidebar_width, height - 4, f"Debug: {v['y_s']}, {v['y_c']}, {v['x']}"[:debug_width])
-        write(stdscr, 2*sidebar_width, height - 3, f"{client.num_servers}, {client.num_channels[v['y_s']]}"[:debug_width])
-        write(stdscr, 2*sidebar_width, height - 2, f"getch: {keys.get('_getch', None)} ({keys.get('_getch_name', '')})"[:debug_width])
-        write(stdscr, 2*sidebar_width, height - 1, f"keys: {keys}"[:debug_width])
-
+        
         
         stdscr.refresh()
         return

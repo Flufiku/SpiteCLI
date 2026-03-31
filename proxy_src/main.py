@@ -6,7 +6,7 @@ from typing import Any
 import discord
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
-
+import uvicorn
 
 load_dotenv()
 
@@ -86,17 +86,42 @@ class DiscordBridge:
 
 			messages: list[dict[str, Any]] = []
 			async for message in channel.history(limit=limit):
-				messages.append(
-					{
-						"id": message.id,
-						"content": message.content,
-						"author": {
-							"id": message.author.id,
-							"name": message.author.name,
-						},
-						"created_at": message.created_at.isoformat() if message.created_at else None,
+				msg_dict = {
+					"id": message.id,
+					"content": message.content,
+					"author": {"id": message.author.id, "name": message.author.name},
+					"created_at": message.created_at.isoformat() if message.created_at else None,
+				}
+				if message.reference:
+					reference_data: dict[str, Any] = {
+						"message_id": message.reference.message_id,
+						"channel_id": message.reference.channel_id,
+						"guild_id": message.reference.guild_id,
 					}
-				)
+					resolved = getattr(message.reference, "resolved", None)
+					if resolved is None and message.reference.channel_id and message.reference.message_id:
+						ref_channel = self.client.get_channel(message.reference.channel_id)
+						if ref_channel is not None and hasattr(ref_channel, "fetch_message"):
+							try:
+								resolved = await ref_channel.fetch_message(message.reference.message_id)
+							except Exception:
+								resolved = None
+					if resolved is not None and hasattr(resolved, "author"):
+						reference_data["resolved"] = {
+							"id": getattr(resolved, "id", None),
+							"content": getattr(resolved, "content", ""),
+							"author": {
+								"id": getattr(getattr(resolved, "author", None), "id", None),
+								"name": getattr(getattr(resolved, "author", None), "name", "unknown"),
+							},
+						}
+					msg_dict["reference"] = reference_data
+				if message.attachments:
+					msg_dict["attachments"] = [
+						{"id": a.id, "filename": a.filename, "size": a.size, "url": a.url}
+						for a in message.attachments
+					]
+				messages.append(msg_dict)
 			return messages
 
 		try:
@@ -132,3 +157,7 @@ def get_channels(server: int) -> list[dict[str, Any]]:
 @app.get("/get_messages/{channel}")
 def get_messages(channel: int, limit: int = Query(default=100, ge=1, le=500)) -> list[dict[str, Any]]:
 	return bridge.get_messages(channel, limit)
+
+
+if __name__ == "__main__":
+	uvicorn.run(app, host="0.0.0.0", port=8000)
